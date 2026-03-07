@@ -5,7 +5,7 @@ Feature: 分析 common ResultItem 及其上层使用
 
 ## 测试策略说明
 
-`dev-log/plan.md` 已明确：本 issue 是**文档分析任务**，交付物应为新的分析类 dev log，而不是功能实现或自动化测试资产。
+`dev-log/plan.md` 已明确：本 issue 是**文档分析任务**，交付物应为新的分析类 dev log，而不是功能实现、自动化测试资产或新的运行期行为。
 
 因此本次 testcase 设计采用**文档验收型用例**，重点验证：
 
@@ -13,9 +13,10 @@ Feature: 分析 common ResultItem 及其上层使用
 - 文档结论是否与源码实现一致
 - 是否覆盖 `common.ResultItem` 的定义、聚合主链路、上游生产者、下游消费者
 - 是否正确区分运行期聚合结构与输出阶段局部结构
+- 是否说明 `EnablePyMerge`、`Http` 等分支对 `Objects` / `ObjSize` 的影响边界
 - 是否保持“只交付文档、不新增实现/测试资产”的边界
 
-本次**不新增 `test_*.py`、`testdata/`、`validate.py`**，因为这会违背本 issue 的交付范围。
+本次**不新增 `test_*.py`、`testdata/`、`validate.py`**，因为这会违背本 issue 的交付范围，也不符合 `plan.md` 对 AC7 的要求。
 
 ## Test Cases Designed
 
@@ -93,7 +94,7 @@ Feature: 分析 common ResultItem 及其上层使用
 ### TC-004: 上游调用方覆盖主要调用模式
 - **关联 AC**: AC4
 - **类型**: 正向
-- **测试数据**: `python/`、`nodejs/`、`txos/` 中 `AddToResultItems` / `MergeResultItems` / `GetResultItem` 的调用点，开发者新增的 dev log
+- **测试数据**: `python/`、`nodejs/`、`txos/`、`mallocer/` 中 `AddToResultItems` / `MergeResultItems` / `GetResultItem` 的调用点，开发者新增的 dev log
 - **前置条件**:
   - 可以检索全仓库调用位置
 - **测试步骤**:
@@ -101,6 +102,7 @@ Feature: 分析 common ResultItem 及其上层使用
   2. 核对文档是否覆盖主要上游模块，而不是只分析 `common/` 内部。
   3. 检查文档是否概括典型模式：模块内创建 `map[uint64]*ResultItem`，通过闭包访问 `GetResultItem`，最终统一 `MergeResultItems`。
   4. 检查文档是否忠实反映真实分布，不夸大未发现的调用范围。
+  5. 特别检查文档是否至少提及 `mallocer/` 侧也存在直接生产 `ResultItem` 数据的调用点。
 - **预期结果**: 文档覆盖主要生产者与典型调用模式。
 - **验证方式**: 代码检索 + 手动文档检查
 - **验收命令**:
