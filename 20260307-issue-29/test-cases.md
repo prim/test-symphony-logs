@@ -3,18 +3,19 @@
 ## 关联计划
 Feature: 分析 common ResultItem 及其上层使用
 
-## 说明
+## 测试策略说明
 
-`dev-log/plan.md` 已明确说明：本 issue 是**文档分析任务**，不要求功能实现，也不要求 QA 执行常规 `testdata/run_test.py` 测试。
+`dev-log/plan.md` 已明确：本 issue 是**文档分析任务**，交付物应为新的分析类 dev log，而不是功能实现或自动化测试资产。
 
-因此，本次 testcase 设计采用**文档验收型用例**，目标是验证开发者提交的分析文档是否：
+因此本次 testcase 设计采用**文档验收型用例**，重点验证：
 
-- 覆盖范围完整
-- 与源码一致
-- 边界清晰
-- 没有把输出结构误当成运行期聚合结构
+- 文档范围是否与 issue 一致
+- 文档结论是否与源码实现一致
+- 是否覆盖 `common.ResultItem` 的定义、聚合主链路、上游生产者、下游消费者
+- 是否正确区分运行期聚合结构与输出阶段局部结构
+- 是否保持“只交付文档、不新增实现/测试资产”的边界
 
-本次**不新增 `test_*.py`、`testdata/`、`validate.py`**，因为这将违背 issue 的交付边界。
+本次**不新增 `test_*.py`、`testdata/`、`validate.py`**，因为这会违背本 issue 的交付范围。
 
 ## Test Cases Designed
 
@@ -26,7 +27,7 @@ Feature: 分析 common ResultItem 及其上层使用
 1. **TC-001 文档范围与 issue 目标一致**：验证新 dev log 聚焦 `common.ResultItem` 定义、职责、数据流和上下游使用，不偏离到功能实现、修复方案或重构设计。
 2. **TC-002 ResultItem 定义与核心字段说明完整**：验证文档准确说明 `common/result_items.go` 中 `ResultItem`、`ResultItems`、`ResultItemPool` 及字段 `Amount`、`Sizeof`、`Objects`、`ObjSize` 的职责。
 3. **TC-003 聚合主链路描述正确**：验证文档正确串联 `NewResultItem`、`GetResultItem`、`AddToResultItems`、`AddToResultItems1`、`MergeResultItems`、`AddResult` 的关系，以及局部聚合到全局合并的数据流。
-4. **TC-004 上游调用方覆盖充分**：验证文档覆盖主要生产者模块，如 `python/`、`nodejs/`、`txos/`，并描述常见调用模式：局部 map + 闭包 `GetResultItem` + 最终 `MergeResultItems`。
+4. **TC-004 上游调用方覆盖充分**：验证文档覆盖主要生产者模块，如 `python/`、`nodejs/`、`txos/`、`mallocer/`，并描述常见调用模式：局部 map + 闭包 `GetResultItem` + 最终 `MergeResultItems`。
 5. **TC-005 下游消费链路覆盖完整**：验证文档覆盖 `SortByValue`、`PrintSortedResults`、`PrintObjects`、`PrintTextModeResults` 以及 `http.go`、`postman/postman-profile-main.go` 的消费路径。
 6. **TC-006 区分共享聚合结构与输出局部结构**：验证文档明确区分 `common/result_items.go` 中真正的 `common.ResultItem`，与 `common/utils.go` 的 `PrintTextModeResults` 内部局部输出结构。
 7. **TC-007 排序与对象样本展示边界说明正确**：验证文档说明 `Objects` / `ObjSize` 不仅参与统计聚合，也会被 `PrintObjects` 等二级展示链路消费，并指出 `PrintSortedResults` 对 `ResultItems` 的裁剪边界。
