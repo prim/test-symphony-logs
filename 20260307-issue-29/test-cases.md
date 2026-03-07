@@ -23,7 +23,7 @@ Feature: 分析 common ResultItem 及其上层使用
   - `dev-log/plan.md` 已存在
   - 本 issue 已新增一份 dev log 文档
 - **测试步骤**:
-  1. 阅读 `dev-log/plan.md` 中的 issue 描述、需求拆解、验收关注点。
+  1. 阅读 `dev-log/plan.md` 中的 issue 描述、需求拆解、验收标准。
   2. 阅读开发者新增的 dev log。
   3. 核对文档是否聚焦于：定位 `common.ResultItem`、分析职责与数据流、梳理上层使用关系。
   4. 确认文档没有偏离到无关功能设计、代码重构或 bug 修复方案。
