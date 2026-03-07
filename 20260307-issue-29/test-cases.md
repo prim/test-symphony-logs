@@ -18,6 +18,17 @@ Feature: 分析 common ResultItem 及其上层使用
 
 本次**不新增 `test_*.py`、`testdata/`、`validate.py`**，因为这会违背本 issue 的交付范围，也不符合 `plan.md` 对 AC7 的要求。
 
+## 源码核对范围
+
+- **核心聚合结构**: `common/result_items.go`
+- **排序与展示**: `common/webui.go`
+- **文本 / JSON 输出适配**: `common/utils.go`
+- **HTTP 消费链路**: `http.go`
+- **Postman 消费链路**: `postman/postman-profile-main.go`
+- **主要上游生产者**: `python/`、`nodejs/`、`txos/`、`mallocer/`
+
+> 说明：本文件中的“验收命令”统一记为“无”，原因不是缺少测试设计，而是该 issue 的 AC 明确限定为**仅交付文档分析**。本次验收以**源码对照 + 文档审阅**完成，而非 `run_test.py` 自动化执行。
+
 ## Test Cases Designed
 
 ### Test File(s)
@@ -32,7 +43,8 @@ Feature: 分析 common ResultItem 及其上层使用
 5. **TC-005 下游消费链路覆盖完整**：验证文档覆盖 `SortByValue`、`PrintSortedResults`、`PrintObjects`、`PrintTextModeResults` 以及 `http.go`、`postman/postman-profile-main.go` 的消费路径。
 6. **TC-006 区分共享聚合结构与输出局部结构**：验证文档明确区分 `common/result_items.go` 中真正的 `common.ResultItem`，与 `common/utils.go` 的 `PrintTextModeResults` 内部局部输出结构。
 7. **TC-007 排序与对象样本展示边界说明正确**：验证文档说明 `Objects` / `ObjSize` 不仅参与统计聚合，也会被 `PrintObjects` 等二级展示链路消费，并指出 `PrintSortedResults` 对 `ResultItems` 的裁剪边界。
-8. **TC-008 交付物边界正确**：验证本 issue 最终仅新增分析文档，不新增功能实现改动，也不新增自动化测试资产。
+8. **TC-008 EnablePyMerge / Http 分支影响说明正确**：验证文档说明 `EnablePyMerge` 与 `Http` 两个分支如何改变 `Objects`、`ObjSize`、TopN 保留与结果裁剪行为。
+9. **TC-009 交付物边界正确**：验证本 issue 最终仅新增分析文档，不新增功能实现改动，也不新增自动化测试资产。
 
 ## 详细 Test Case 列表
 
@@ -164,7 +176,25 @@ Feature: 分析 common ResultItem 及其上层使用
   无。该 issue 为文档分析任务，不要求 run_test.py 自动化验收。
   ```
 
-### TC-008: 交付物边界正确，不引入额外实现或测试资产
+### TC-008: EnablePyMerge / Http 分支影响说明正确
+- **关联 AC**: AC3, AC5
+- **类型**: 边界
+- **测试数据**: `common/result_items.go`、`common/webui.go`，开发者新增的 dev log
+- **前置条件**:
+  - 可以读取聚合与展示相关源码
+- **测试步骤**:
+  1. 阅读 `AddToResultItems` 中 `EnablePyMerge`、`Http`、默认分支对 `Objects` / `ObjSize` 的处理差异。
+  2. 阅读 `MergeResultItems` 中 `EnablePyMerge` 分支对优先队列、`ObjSize` 收缩和 TopN 样本保留逻辑。
+  3. 阅读 `PrintSortedResults` 中 `!Http` 时对 `ResultItems` 的裁剪逻辑。
+  4. 检查 dev log 是否准确说明这些分支的边界与影响，而不是笼统描述“保存对象样本”。
+- **预期结果**: 文档准确说明分支差异，包括对象样本采集、对象大小映射保留以及 HTTP / 非 HTTP 场景下的结果集合边界。
+- **验证方式**: 代码对照 + 手动文档检查
+- **验收命令**:
+  ```bash
+  无。该 issue 为文档分析任务，不要求 run_test.py 自动化验收。
+  ```
+
+### TC-009: 交付物边界正确，不引入额外实现或测试资产
 - **关联 AC**: AC7
 - **类型**: 反向
 - **测试数据**: 本 issue 全部变更文件
