@@ -1,17 +1,16 @@
 ## Code Review Result: FAIL
 
 ## 架构与设计
-- 发现 1：`common/mpm` 的版本选择仍然允许 `mpm_v1` 与 `mpm_v2` 两个 build tag 同时生效。当前 `select_v1.go` 与 `select_v2.go` 都会被编译并各自执行 `init()`，最终门面函数指针绑定到哪个版本取决于包内 `init` 执行顺序；这不是一个稳定、可预测的单点绑定机制，违背了“门面层可无条件绑定任一版本”与“不引入双全局状态问题”的设计目标。位置：`common/mpm/select_v1.go`、`common/mpm/select_v2.go`。严重程度：major。
-- 发现 2：稳定门面 `common/mpm` 直接暴露 `MemoryPageV2`、`MemoryPieceManagerV2` 以及 `NewMemoryPieceManagerV2()`，并在 `facade.go` 中直接依赖 `maze/common/mpm/v2`。这使门面层泄漏了具体版本实现细节，后续若要让业务“只依赖稳定门面”并真正做到可切换实现，将不得不长期背负 V2 专有类型兼容包袱，与“`common/mpm` 只做稳定门面，不承载具体算法实现”的目标不一致。位置：`common/mpm/facade.go`。严重程度：major。
+- 发现 1：门面层声明支持通过 build tags 绑定 V1/V2，但 `mpm_v1` 路径下的 V1 实现并不满足这一承诺。`common/mpm/v1/mpm.go` 仍沿用超大定长数组 `type MemoryPieceManager [MazePageAmount]MemoryPage`，并在多个导出函数中对该数组做按值 `range` 遍历，导致一旦门面切换到 V1，基础门面测试就会因栈溢出直接崩溃，说明“门面可无条件绑定任一版本”这一架构目标尚未真正成立。
 
 ## 代码质量发现
-- 发现 1：双 build tag 同时开启时存在非确定性绑定风险，属于版本选择机制设计缺陷。文件：`common/mpm/select_v1.go`、`common/mpm/select_v2.go`。严重程度：major。
-- 发现 2：门面层暴露 V2 专有类型与构造入口，抽象边界被破坏。文件：`common/mpm/facade.go`。严重程度：major。
+- 发现 1：`mpm_v1` 构建路径存在确定性的栈溢出问题。`common/mpm/v1/mpm.go` 中 `Sort()`、`Check()`、`PrettyPrint()` 使用 `for _, page := range MM` / `for pageID, page := range MM` 遍历 `MM`；由于 `MM` 是超大数组，这会先复制整个数组，再开始遍历。实际执行 `go test -tags mpm_v1 ./common/mpm/...` 时，`common/mpm.TestFacadeBasicContract` 已稳定触发 `runtime: goroutine stack exceeds 1000000000-byte limit`。这不是测试问题，而是 V1 导出实现本身无法安全作为门面后端。文件：`common/mpm/v1/mpm.go`。严重程度：major。
+- 发现 2：与版本切换直接相关的测试覆盖仍不完整。当前默认路径与 `mpm_v2` 路径都能通过，但仓库内新增测试没有把 `mpm_v1` 作为门面后端纳入常规验证，导致上述致命问题直到显式带 tag 执行时才暴露。考虑到本次改动的核心目标之一就是“门面层可绑定任一版本”，缺少对应构建维度的回归验证会显著增加后续回归风险。文件：`common/mpm/facade_contract_test.go`、`qa/issue134/mpm_facade_migration_test.go`。严重程度：minor。
 
 ## 建议改进
-- 为版本选择增加互斥约束，确保 `mpm_v1` 与 `mpm_v2` 不能同时生效；若同时传入，应在编译期直接失败，而不是依赖 `init()` 覆盖。
-- 将兼容层与稳定门面分离：稳定门面只保留版本无关 API；V2 专有类型/构造入口应放在专门的兼容层或版本包中，避免继续扩大 `common/mpm` 的实现泄漏面。
-- 为 build tag 选择策略补充负向测试，覆盖“同时启用两个 tag”这一错误配置场景。
+- 修正 V1 中对超大数组的按值遍历，避免在导出路径上复制整个 `MemoryPieceManager`。
+- 将 `mpm_v1`、`mpm_v2` 两条门面绑定路径都纳入直接验证，至少覆盖基础契约测试，避免只验证默认绑定成功。
+- 对版本选择相关的 CI 增加按 tag 的最小冒烟，确保“可切换”不是静态结构层面的假设，而是可执行约束。
 
 ## 总结
-本轮重构已经把目录结构拆开，并补齐了契约/race/benchmark/回归验证入口，整体迁移工作量较大；但从代码审查角度看，版本绑定机制和门面抽象边界仍存在实质性设计问题。尤其是双 tag 非确定性绑定会直接影响可维护性与可预期性，而门面暴露 V2 专有类型则削弱了后续演进空间。因此本次代码审查结论为 FAIL，建议先修正上述 major 问题后再审批。
+这次重构在目录拆分、门面收口和兼容层整理上已经接近目标，但从代码审查角度看，最关键的承诺——门面可稳定绑定任一版本——目前并未成立。`mpm_v1` 路径下存在可稳定复现的栈溢出，意味着该版本在现状下不能作为可用后端交付，因此本轮审查结论为 FAIL。建议先修复 V1 实现中的大数组按值遍历问题，并补足按 build tag 的门面验证后再继续审批。
